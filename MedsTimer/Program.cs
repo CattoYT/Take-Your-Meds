@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Globalization;
+using System.Reflection;
 using NAudio.Wave;
 
 class Program {
@@ -28,6 +29,9 @@ class Program {
     static Int64 unixTimestamp;
     
     public static void Main(string[] args) {
+
+
+        bool whichdrug = true; //true = IB and false = parac
         
         // run this shit so that it can detect when the program is closed and save the state
         AppDomain.CurrentDomain.ProcessExit += (OnProcessExit);
@@ -40,15 +44,16 @@ class Program {
 
         
         string time;
+        DateTimeOffset pastTime;
         if (File.Exists(Path.Combine(AppContext.BaseDirectory, "LastTime.txt"))) {
             using (StreamReader timeFile = new StreamReader(Path.Combine(AppContext.BaseDirectory, "LastTime.txt"))) {
                 time = timeFile.ReadLine();
             }
             Console.WriteLine("Read Time: "+time);
-            // covert the read seconds into miliseconds to pass to thread.sleep
+            
             Int64 CurrentTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
             Console.WriteLine("Current time: "+ CurrentTime);
-            Int64 remainingTime = Math.Abs(CurrentTime - Convert.ToInt64(time));
+            Int64 remainingTime = 7200000 - (CurrentTime - Convert.ToInt64(time));
             Console.WriteLine("Remaining Time: " + (int)remainingTime);
             
             if (remainingTime > 0 & remainingTime < 7200000) {
@@ -57,7 +62,41 @@ class Program {
                 Thread.Sleep((int)remainingTime);
             }
             else {
-                Console.WriteLine("When did you last take them? ");
+                Console.WriteLine("When did you last take them? (HH:mm)");
+                
+                string previousTime = Console.ReadLine();
+                Console.WriteLine("Which Drug? (IB/Para)");
+
+                whichdrug = Console.ReadLine() == "IB";
+                
+                try {
+                    pastTime = DateTimeOffset.ParseExact(previousTime, "HH:mm", CultureInfo.InvariantCulture);
+                }
+                catch {
+                    //end process
+                    return;
+                }
+
+                bool found = false;
+                Int64 timeOffset = CurrentTime - pastTime.ToUnixTimeMilliseconds();
+
+
+                int index = 1;
+                while (!found) {
+                    // Calculate how much time is left until the next 2-hour interval
+                    Int64 nextInterval = 7200000 - (timeOffset % 7200000);
+
+                    if (nextInterval > 0 && nextInterval < 7200000) {
+                        TimeSpan sleepTimeSpan = TimeSpan.FromMilliseconds(nextInterval);
+
+                        string formattedTime =
+                            string.Format("{0:D2}:{1:D2}:{2:D2}", sleepTimeSpan.Hours, sleepTimeSpan.Minutes, sleepTimeSpan.Seconds);
+
+                        Console.WriteLine($"Waiting for {formattedTime} minutes:seconds.");
+                        Thread.Sleep((int)nextInterval);
+                        found = true;
+                    }
+                }
             }
             
             
@@ -68,15 +107,12 @@ class Program {
         for (int i = 1; i < 8; i++) {
             Console.WriteLine("Take Meds");
             PlaySound(audioStream, 0);
-            if (i % 2 == 0) {
-                Console.WriteLine("Take Iburprofen (1x)");
-            }
-            else {
-                Console.WriteLine("Take Paracetamol (2x)");
-            }
+            Console.WriteLine(whichdrug ? "Take Iburprofen (1x)" : "Take Paracetamol (2x)");
+
+            whichdrug = !whichdrug;
                 
             Console.WriteLine($"This is number {i}.");
-            unixTimestamp = (Int64)DateTimeOffset.Now.ToUnixTimeMilliseconds() + 7200000;
+            unixTimestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds() + 7200000;
             Thread.Sleep(7200000); //2h in ms
         }
         
