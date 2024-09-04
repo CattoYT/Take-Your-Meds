@@ -2,6 +2,7 @@
 using System.Reflection;
 using NAudio.Wave;
 
+
 class Program {
 
     private static void PlaySound(Stream File, int Duration) {
@@ -14,7 +15,6 @@ class Program {
             waveOut.Play();
             if (Duration == 0){
                 int SleepDuration = (int)wavReader.TotalTime.TotalMilliseconds;
-                Console.WriteLine(SleepDuration);
                 Thread.Sleep(SleepDuration);
             }
             else {
@@ -65,54 +65,60 @@ class Program {
                 Console.WriteLine("When did you last take them? (HH:mm)");
                 
                 string previousTime = Console.ReadLine();
-                Console.WriteLine("Which Drug? (IB/Para)");
+                if (previousTime != "") {
+                    Console.WriteLine("Which Drug? (IB/Para)");
 
-                whichdrug = Console.ReadLine() == "IB";
+                    whichdrug = Console.ReadLine() == "IB";
                 
-                try {
-                    pastTime = DateTimeOffset.ParseExact(previousTime, "HH:mm", CultureInfo.InvariantCulture);
-                }
-                catch {
-                    //end process
-                    return;
-                }
+                    try {
+                        pastTime = DateTimeOffset.ParseExact(previousTime, "HH:mm", CultureInfo.InvariantCulture);
+                    }
+                    catch {
+                        //end process
+                        return;
+                    }
 
-                bool found = false;
-                Int64 timeOffset = CurrentTime - pastTime.ToUnixTimeMilliseconds();
+                    bool found = false;
+                    Int64 timeOffset = CurrentTime - pastTime.ToUnixTimeMilliseconds();
 
 
-                int index = 1;
-                while (!found) {
-                    // Calculate how much time is left until the next 2-hour interval
-                    Int64 nextInterval = 7200000 - (timeOffset % 7200000);
+                    int index = 1;
+                    while (!found) {
+                        // Calculate how much time is left until the next 2-hour interval
+                        Int64 nextInterval = 7200000 - (timeOffset % 7200000);
 
-                    if (nextInterval > 0 && nextInterval < 7200000) {
-                        TimeSpan sleepTimeSpan = TimeSpan.FromMilliseconds(nextInterval);
+                        if (nextInterval > 0 && nextInterval < 7200000) {
+                            TimeSpan sleepTimeSpan = TimeSpan.FromMilliseconds(nextInterval);
 
-                        string formattedTime =
-                            string.Format("{0:D2}:{1:D2}:{2:D2}", sleepTimeSpan.Hours, sleepTimeSpan.Minutes, sleepTimeSpan.Seconds);
+                            string formattedTime =
+                                string.Format("{0:D2}:{1:D2}:{2:D2}", sleepTimeSpan.Hours, sleepTimeSpan.Minutes, sleepTimeSpan.Seconds);
 
-                        Console.WriteLine($"Waiting for {formattedTime} minutes:seconds.");
-                        Thread.Sleep((int)nextInterval);
-                        found = true;
+                            Console.WriteLine($"Waiting for {formattedTime} minutes:seconds.");
+                            Thread.Sleep((int)nextInterval);
+                            found = true;
+                        }
                     }
                 }
+
             }
             
             
             
             
         }
-        
+        else {
+            whichdrug = false;
+        }
+        Console.WriteLine("Welcome to the Meds Timer! \nGo do whatever you want to do, and I'll make sure you take the meds!");
         for (int i = 1; i < 8; i++) {
-            Console.WriteLine("Take Meds");
+
             PlaySound(audioStream, 0);
             Console.WriteLine(whichdrug ? "Take Iburprofen (1x)" : "Take Paracetamol (2x)");
 
             whichdrug = !whichdrug;
-                
-            Console.WriteLine($"This is number {i}.");
             unixTimestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds() + 7200000;
+            Console.WriteLine($"Your next timestamp is {DateTimeOffset.FromUnixTimeMilliseconds(unixTimestamp).DateTime}");
+            
             Thread.Sleep(7200000); //2h in ms
         }
         
@@ -124,7 +130,6 @@ class Program {
     {
         
 
-        Console.WriteLine(unixTimestamp);
         using (StreamWriter outputFile = new StreamWriter(Path.Combine(AppContext.BaseDirectory, "LastTime.txt")))
         {
             outputFile.WriteLine(unixTimestamp);
